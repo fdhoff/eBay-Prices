@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html>
+<head lang="en">
+	<meta charset="UTF-8">
+	<title>{{.Title}}</title>
+</head>
+<body>
+	<hr>
+	<h2>Please select an eBay item (used)<h2>
+
+	<input type="text" id="itemName" value="name">
+	<input type="text" id="itemName" value="category id">
+	<input type="submit" value="Submit" onclick="draw()">
+	
+
+	<h2>Here's the data:</h2>
+	<div id="chart"></div>
+
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.css" rel="stylesheet" type="text/css">
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/c3/0.4.10/c3.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.min.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/2.1.4/jquery.js"></script>
+	<script>
+		function draw(){
+			itemName = [$('#itemName').val()];
+			$('#itemName').val("");
+			var jsonString = '{"test": "'+itemName+'"}';
+		    $.ajax({
+		        type: "POST",
+		        url: "http://localhost:8080/postit",
+		        data: jsonString,
+		        cache: false,
+		        success: function(response){
+		          generateChart(JSON.parse(response), itemName);
+		        }
+		    });
+		}
+
+		function generateChart(j, itemName){
+			prices = (j.Prices);
+			times = (j.Times);
+
+			formattedTimes = [];
+			for (i=0; i<times.length; i++){
+				var res = times[i].split("-");
+				month = res[0];
+				day = res[1];
+				year = "2015";
+				formattedTimes.push(month+' '+day);
+			}
+
+			someArray = filterOutliers(prices, formattedTimes);
+			filteredPrices = someArray[0];
+			filteredTimes = someArray[1];
+
+			filteredPrices.unshift(itemName);
+			filteredTimes.unshift('x');
+
+			var chart = c3.generate({
+			    bindto: '#chart',
+			    data: {
+			        x: 'x',
+			        columns: [
+			            filteredTimes,
+			            filteredPrices
+			        ]
+			    },
+			    axis: {
+			        x: {
+			            type: 'category',
+			            tick: {
+			                count: 6
+			            }
+			        }
+			    }
+			});
+		}
+
+		function filterOutliers(someArray, someArray2) {  
+
+		    // Copy the values, rather than operating on references to existing values
+		    var values = someArray.concat();
+		    var times = someArray2;
+
+		    // Then sort
+		    values.sort( function(a, b) {
+		            return a - b;
+		         });
+
+		    /* Then find a generous IQR. This is generous because if (values.length / 4) 
+		     * is not an int, then really you should average the two elements on either 
+		     * side to find q1.
+		     */     
+		    var q1 = values[Math.floor((values.length / 4))];
+		    // Likewise for q3. 
+		    var q3 = values[Math.ceil((values.length * (3 / 4)))];
+		    var iqr = q3 - q1;
+
+		    // Then find min and max values
+		    var maxValue = q3 + iqr*1.5;
+		    var minValue = q1 - iqr*1.5;
+
+		    values = someArray.concat();
+		    newVals = [];
+		    newTimes = [];
+		    for (i=0; i<values.length; i++){
+		    	if (values[i] < maxValue && values[i] > minValue){
+		    		newVals.push(values[i]);
+		    		newTimes.push(times[i]);
+		    	}
+		    	else{
+		    		console.log(values[i]);
+		    	}
+		    }
+		    return [newVals, newTimes];
+		}
+
+	</script>
+
+
+
+</body>
+</html>
