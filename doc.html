@@ -16,6 +16,63 @@ path {
     stroke-width: 1;
     shape-rendering: crispEdges;
 }
+
+.d3-tip {
+  line-height: 1;
+  font-weight: bold;
+  padding: 12px;
+  background: rgba(0, 0, 0, 0.8);
+  color: #fff;
+  border-radius: 2px;
+  opacity: 0.9;
+}
+
+/* Creates a small triangle extender for the tooltip */
+.d3-tip:after {
+  box-sizing: border-box;
+  display: inline;
+  font-size: 10px;
+  width: 100%;
+  line-height: 1;
+  color: rgba(0, 0, 0, 0.8);
+  content: "\25BC";
+  position: absolute;
+  text-align: center;
+  opacity: 0.9;
+}
+
+/* Style northward tooltips differently */
+.d3-tip.n:after {
+  margin: -1px 0 0 0;
+  top: 100%;
+  left: 0;
+  opacity: 0.9;
+}
+
+a{
+	font-color: lightblue;
+}
+
+svg{
+	overflow: visible;
+}
+
+.y3 {
+	stroke: orangered;
+	fill: orangered;
+}
+
+.y1 {
+	stroke: orangered;
+	fill: orangered;
+}
+
+.grid .tick {
+stroke: lightgrey; stroke-opacity: 0.7; shape-rendering: crispEdges;
+}
+.grid path {
+stroke-width: 0;
+}
 </style>
 
 <body>
@@ -69,10 +126,10 @@ path {
 		<h2>Here's the data:</h2>
 		<div id="chart"></div><br><br>
 
-		<div> 
+		<!--<div> 
 			<span>The average price of your item is: $x. Track if this item appears for $XXX (slidebar)? <br>
 			  You will get email alerts if this item shows up at this price Buy it Now or with one hour remaining for auction.</span>
-		</div>
+		</div>-->
 	</div>
 </body>
 </html>
@@ -80,6 +137,8 @@ path {
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/3.5.6/d3.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.0.0-alpha1/jquery.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3-tip/0.6.3/d3-tip.min.js"></script>
+
 <script>
 
 $("#search_terms").on("click", function(){
@@ -89,52 +148,92 @@ $("#search_terms").on("click", function(){
 });
 
 
-// Set the dimensions of the canvas / graph
-var margin = {top: 30, right: 20, bottom: 30, left: 50},
-    width = 600 - margin.left - margin.right,
-    height = 270 - margin.top - margin.bottom;
 
-// Parse the date / time
-var parseDate = d3.time.format("%d-%b-%y").parse,
-    formatDate = d3.time.format("%d-%b"),
-    bisectDate = d3.bisector(function(d) { return d.date; }).left;
 
-// Set the ranges
-var x = d3.time.scale().range([0, width]);
-var y = d3.scale.linear().range([height, 0]);
+function generate_chart_two(data, condition, terms){
+	var prevd;
+	var d;
 
-// Define the axes
-var xAxis = d3.svg.axis().scale(x)
-    .orient("bottom").ticks(5);
+	d3.select("svg").remove();
+	if(condition == '&LH_ItemCondition=3000'){
+		condition = 'Used  ';
+	}
+	else{
+		condition = 'New  ';
+	}
 
-var yAxis = d3.svg.axis().scale(y)
-    .orient("left").ticks(5);
+	function make_x_axis() { return d3.svg.axis()
+        .scale(x)
+        .orient("bottom")
+        .ticks(21);
+	}
+	function make_y_axis() { return d3.svg.axis()
+	        .scale(y)
+	        .orient("left")
+	        .ticks(5);
+	}
 
-// Define the line
-var valueline = d3.svg.line()
-    .x(function(d) { return x(d.date); })
-    .y(function(d) { return y(d.close); });
-    
-// Adds the svg canvas
-var svg = d3.select("body")
-    .append("svg")
-        .attr("width", width + margin.left + margin.right)
-        .attr("height", height + margin.top + margin.bottom)
-    .append("g")
-        .attr("transform", 
-              "translate(" + margin.left + "," + margin.top + ")");
+	// Set the dimensions of the canvas / graph
+	var margin = {top: 30, right: 20, bottom: 30, left: 50},
+	    width = window.innerWidth - margin.left - margin.right,
+	    height = 270 - margin.top - margin.bottom;
 
-var lineSvg = svg.append("g"); 
+	// Parse the date / time
+	var formatDate = d3.time.format("%d-%b %I %p");
+	var bisectDate = d3.bisector(function(d) { return d.date; }).left;
 
-var focus = svg.append("g") 
-    .style("display", "none");
+	// Set the ranges
+	var x = d3.time.scale().range([0, width]);
+	var y = d3.scale.linear().range([height, 0]);
 
-// Get the data
-function generate_chart_two(data){
 
 	// Scale the range of the data
 	x.domain(d3.extent(data, function(d) { return d.date; }));
 	y.domain([0, d3.max(data, function(d) { return d.close; })]);
+
+	// Define the axes
+	var xAxis = d3.svg.axis().scale(x)
+	    .orient("bottom").ticks(5);
+
+	var yAxis = d3.svg.axis().scale(y)
+	    .orient("left").ticks(5);
+
+	// Define the line
+	var valueline = d3.svg.line()
+		.interpolate("basis")
+	    .x(function(d) { return x(d.date); })
+	    .y(function(d) { return y(d.close); });
+	    
+	// Adds the svg canvas
+	var svg = d3.select("body")
+	    .append("svg")
+	        .attr("width", width + margin.left + margin.right)
+	        .attr("height", height + margin.top + margin.bottom)
+	    .append("g")
+	        .attr("transform", 
+	              "translate(" + margin.left + "," + margin.top + ")");
+
+	var lineSvg = svg.append("g"); 
+
+	var focus = svg.append("g")
+	.attr("fill", "orangered") 
+    .style("display", "none");
+
+
+
+
+    var tip = d3.tip()
+    .attr('class', 'd3-tip')
+    .offset([-10, 0])
+	.html(function(d) {
+		var dateTag = d.date;
+		h = dateTag.getHours();
+		var hours = h = h > 12 ? h-12 +'pm' : h +'am';	
+		var dateText = (String(parseInt(dateTag.getMonth())+1) + "-" + dateTag.getDate() + "-" + dateTag.getFullYear());
+		return condition + terms + " sold for " + "<span style='color:green'><strong>$" + d.close.toFixed(2) + "</span> on <span style='color:red'>"  + dateText + " at " + hours + " </strong></span><br> " + "<a href=" + d.url + ">" + d.title + "</a>";
+	});
+    svg.call(tip);
+
 
 	// Add the valueline path.
 	lineSvg.append("path")
@@ -145,12 +244,22 @@ function generate_chart_two(data){
 	svg.append("g")
 	    .attr("class", "x axis")
 	    .attr("transform", "translate(0," + height + ")")
-	    .call(xAxis);
+	    .call(xAxis)
+	    .append("text")
+	    .attr("x", width)
+	    .attr("dy", "-.71em")
+        .style("text-anchor", "end")
+	    .text("Date");
 
 	// Add the Y Axis
 	svg.append("g")
 	    .attr("class", "y axis")
-	    .call(yAxis);
+	    .call(yAxis)
+	    .append("text")
+	    .attr("x", 0	)
+	    .attr("dy", "-.71em")
+        .style("text-anchor", "end")
+	    .text("Price");
 
 	// append the x line
 	focus.append("line")
@@ -178,7 +287,7 @@ function generate_chart_two(data){
 	    .attr("r", 4);
 
 	// place the value at the intersection
-	focus.append("text")
+	/*focus.append("text")
 	    .attr("class", "y1")
 	    .style("stroke", "white")
 	    .style("stroke-width", "3.5px")
@@ -201,7 +310,7 @@ function generate_chart_two(data){
 	focus.append("text")
 	    .attr("class", "y4")
 	    .attr("dx", 8)
-	    .attr("dy", "1em");
+	    .attr("dy", "1em");*/
 
 	// append the rectangle to capture mouse
 	svg.append("rect")
@@ -210,15 +319,43 @@ function generate_chart_two(data){
 	    .style("fill", "none")
 	    .style("pointer-events", "all")
 	    .on("mouseover", function() { focus.style("display", null); })
-	    .on("mouseout", function() { focus.style("display", "none"); })
+	    .on("mouseout", function() { tip.hide(); focus.style("display", "none"); })
 	    .on("mousemove", mousemove);
 
+	svg.append("g")
+        .attr("class", "grid")
+        .attr("transform", "translate(0," + height + ")")
+        .call(make_x_axis()
+            .tickSize(-height, 0, 0)
+            .tickFormat("")
+        );
+
+    svg.append("g")
+        .attr("class", "grid")
+        .call(make_y_axis()
+            .tickSize(-width, 0, 0)
+            .tickFormat("")
+        );
+
+
+
+
+
+    var prevd;
+    var d;
+
 	function mousemove() {
+
 		var x0 = x.invert(d3.mouse(this)[0]),
 		    i = bisectDate(data, x0, 1),
 		    d0 = data[i - 1],
 		    d1 = data[i];
-		    d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+		
+		prevd = d;
+		d = x0 - d0.date > d1.date - x0 ? d1 : d0;
+
+		if (d != prevd)
+			tip.show(d);
 
 		focus.select("circle.y")
 		    .attr("transform",
@@ -273,11 +410,10 @@ function draw(){
 	console.log(category);
 
 	if (document.getElementById('used').checked){
-		condition = '&LH_ItemCondition=1000';
-	}else{
 		condition = '&LH_ItemCondition=3000';
+	}else{
+		condition = '&LH_ItemCondition=1000';
 	}
-
 
 	var jsonString = '{"Terms": "'+terms+'", "Category": "'+category+'", "Condition": "'+condition+'"}';
     $.ajax({
@@ -286,40 +422,61 @@ function draw(){
         data: jsonString,
         cache: false,
         success: function(response){
-          generateChart(JSON.parse(response));
+          generateChart(JSON.parse(response), condition, terms);
         }
     });
 }
 
-function generateChart(j){
+function generateChart(j, condition, terms){
 	prices = (j.Prices);
 	times = (j.Times);
+	shipping = (j.Shipping);
+	urls = (j.URLs);
+	titles = (j.Titles);
 
 	formattedTimes = [];
 	for (i=0; i<times.length; i++){
-		var res = times[i].split("-");
-		month = res[0];
+		var res = times[i].split(' ')[0].split("-");
+		month = res[0].trim();
 		day = res[1];
 		year = "2015";
-		formattedTimes.push(new Date(year+'/'+month+'/'+day));
+		time = times[i].split(' ')[1] + ":00";
+		full = year+'/'+month+'/'+day+'/'+time;
+		formattedTimes.push(new Date(full));
 	}
 
-	someArray = filterOutliers(prices, formattedTimes);
-	filteredPrices = someArray[0].reverse();
-	filteredTimes = someArray[1].reverse();
+	dataSack = filterOutliers(prices, formattedTimes, shipping, urls, titles); 
+	filteredPrices = dataSack[0];
+	filteredTimes = dataSack[1];
+	filteredShipping = dataSack[2];
 	jdata = [];
 	for (i=0; i<filteredPrices.length; i++){
-		jdata.push({"date": filteredTimes[i], "close": filteredPrices[i]});
+		shipping = String(filteredShipping[i]).replace(/,/g , "").trim();
+		if (shipping == ''){
+			shipping = 'Free';
+		}
+		if (shipping == 'Free'){ //shipping is free
+			cost = filteredPrices[i];
+		}
+		else{
+			cost = filteredPrices[i] + parseFloat(shipping.substr(2)); //add in the cost of shipping
+		}
+		jdata.push({"date": filteredTimes[i], "close": cost, "before_ship": filteredPrices[i], "shipping": shipping, "title": titles[i], "url": urls[i]});
 	}
-	generate_chart_two(jdata);
-	return(jdata);
+	jdata.sort(function(a,b){
+		return a.date - b.date;
+	});
+	generate_chart_two(jdata, condition, terms);
 }
 
-function filterOutliers(someArray, someArray2) {  
+function filterOutliers(someArray, someArray2, someArray3, someArray4, someArray5) {  
 
     // Copy the values, rather than operating on references to existing values
     var values = someArray.concat();
     var times = someArray2;
+    var shipping = someArray3;
+    var urls = someArray4;
+    var titles = someArray5;
 
     // Then sort
     values.sort( function(a, b) {
@@ -342,16 +499,23 @@ function filterOutliers(someArray, someArray2) {
     values = someArray.concat();
     newVals = [];
     newTimes = [];
+    newShipping = [];
+    newUrls = [];
+    newTitles = [];
+
     for (i=0; i<values.length; i++){
     	if (values[i] < maxValue && values[i] > minValue){
     		newVals.push(values[i]);
     		newTimes.push(times[i]);
+    		newShipping.push(shipping[i]);
+    		newUrls.push(urls[i]);
+    		newTitles.push(titles[i]);
     	}
     	else{
     		console.log(values[i]);
     	}
     }
-    return [newVals, newTimes];
+    return [newVals, newTimes, newShipping, newUrls, newTitles];
 }
 
 </script>

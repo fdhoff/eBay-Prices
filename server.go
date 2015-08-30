@@ -24,6 +24,9 @@ type Context struct {
 type data_struct struct {
     Prices []float64
     Times []string
+    Shipping []string
+    Titles []string
+    URLs []string
 }
 
 
@@ -34,8 +37,8 @@ func myPostFunc(w http.ResponseWriter, req *http.Request){
     if err != nil {
         panic(err)
     }
-    prices, times := getPrices(t.Terms, t.Category, t.Condition)
-    ds := data_struct{prices, times}
+    prices, times, shipping, titles, urls := getPrices(t.Terms, t.Category, t.Condition)
+    ds := data_struct{prices, times, shipping, titles, urls}
     b,err := json.Marshal(ds)
     if err != nil{
         log.Fatal(err)
@@ -86,27 +89,59 @@ func priceFinder(firstPrice string) (float64){
 }
 
 
-func getPrices(item string, category string, condition string) ([]float64, []string){
+func getPrices(item string, category string, condition string) ([]float64, []string, []string, []string, []string){
     var buffer bytes.Buffer
-    buffer.WriteString(fmt.Sprint("http://www.ebay.com/sch/",category,"/i.html?_from=R40&LH_Complete=1&LH_Sold=1&_nkw=",item,condition))
+    buffer.WriteString(fmt.Sprint("http://www.ebay.com/sch/",category,"/i.html?_from=R40&LH_Complete=1&LH_Sold=1&_ipg=200&_sop=16&_nkw=",strings.Replace(item, " ", "%20", -1) ,condition))
+    fmt.Println(buffer.String())
     doc, err := goquery.NewDocument(buffer.String())
     if err != nil {
-            log.Fatal(err)
+        log.Fatal(err)
     }
+
     var prices []float64
     var times []string
+    var shipping []string
+    var titles []string
+    var urls []string
+
     doc.Find("li.sresult.lvresult.clearfix").Each(func(i int, s *goquery.Selection) {
+        t := s.Find("span.bold.bidsold").Text()
+        firstPrice := strings.Split(t, "Trending at")[0]
 
-            t := s.Find("span.bold.bidsold").Text()
-            firstPrice := strings.Split(t, "Trending at")[0]
+        price := priceFinder(firstPrice)
+        time  := strings.Trim(s.Find("span.tme").Text(), " ")
 
-            price := priceFinder(firstPrice)
-            time  := strings.Split(s.Find("span.tme").Text(), " ")
-
-            prices = append(prices, price)
-            times = append(times, strings.TrimSpace(time[0]))
+        prices = append(prices, price)
+        times = append(times, time)
     })
-    return prices, times
+
+    doc.Find("span.ship").Each(func(i int, s *goquery.Selection){
+        t := s.Find("span").Text()
+        txt := strings.Split(t, " shipping")[0]
+        shipping = append(shipping, strings.Trim(txt, " "))
+    })
+
+    doc.Find("a.img.imgWr2").Each(func(i int, s *goquery.Selection){
+        if val, ok := s.Find("img").Attr("alt"); !ok {
+            fmt.Println("Expected a title attribute")
+        } else {
+            titles = append(titles, val)
+        }
+        if val, ok := s.Attr("href"); !ok{
+            fmt.Println("Expected a value for the href attribute")
+        }else {
+            urls = append(urls, val)
+        }
+    })
+
+    if (len(prices) == 0){
+        doc.Find("span.amt").Each(func(i int, s *goquery.Selection){
+            t := s.Find("span").Text()
+            fmt.Println(t)
+        });
+    }
+
+    return prices, times, shipping, titles, urls
 }
 
 
